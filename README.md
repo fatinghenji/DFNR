@@ -10,7 +10,7 @@
    - 下载并安装 [AutoHotkey v1.1+](https://www.autohotkey.com/)（推荐使用 64 位版本）。
 
 2. **使用脚本**  
-   - 下载 `后坐力控制.ahk` 文件，右键选择 **“用 AutoHotkey 运行”**。
+   - 下载 `DFNR.ahk` 文件，右键选择 **“用 AutoHotkey 运行”**。
    - 首次运行会自动生成配置文件 `AutoFire.ini`。
 
 3. **管理员权限（可选）**  
