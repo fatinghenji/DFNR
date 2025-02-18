@@ -39,8 +39,22 @@ Gui, Add, Edit, x+5 yp-3 vRecoilForce w200 Number, %defaultRecoil%
 Gui, Add, CheckBox, xm y+15 vBreathHold Checked%breathHold%, 启用屏息
 Gui, Add, CheckBox, xm y+15 vSemiAutoMode Checked%semiAutoMode%, 半自动模式
 Gui, Add, CheckBox, xm y+20 vED gCheckBox Checked, 启用辅助
+
+; 新增配置管理界面
+Gui, Add, Text, xm y+15 w80, 已存配置：
+Gui, Add, DropDownList, x+5 yp-3 vConfigList gLoadSelectedConfig w120
+Gui, Add, Button, x+5 yp w70 gRefreshConfigs, 刷新列表
+
+Gui, Add, Text, xm y+15 w80, 配置名称：
+Gui, Add, Edit, x+5 yp-3 vConfigName w120
+Gui, Add, Button, x+5 yp w70 gSaveConfig, 保存配置
+Gui, Add, Button, x+5 yp w70 gDeleteConfig, 删除配置
+
 Gui, Add, Button, xm y+15 w100 gButtonApplyChanges, 应用设置
-Gui, Show, w300 h280, 智能压枪助手
+Gui, Show, w300 h350, 智能压枪助手
+
+; 初始化时刷新配置列表
+GoSub, RefreshConfigs
 return
 
 ; -------------------------------
@@ -147,6 +161,97 @@ SaveSettings()
     IniWrite, %BreathHold%, %configFile%, Settings, BreathHold
     IniWrite, %SemiAutoMode%, %configFile%, Settings, SemiAutoMode ; 保存模式状态
 }
+; 新增配置保存函数
+SaveConfig:
+    Gui, Submit, NoHide
+    if (ConfigName = "") {
+        MsgBox, 请输入配置名称！
+        return
+    }
+    
+    IniWrite, %FireRate%, %configFile%, Config_%ConfigName%, FireRate
+    IniWrite, %RecoilForce%, %configFile%, Config_%ConfigName%, RecoilForce
+    IniWrite, %HotkeyCC%, %configFile%, Config_%ConfigName%, Hotkey
+    IniWrite, %BreathHold%, %configFile%, Config_%ConfigName%, BreathHold
+    IniWrite, %SemiAutoMode%, %configFile%, Config_%ConfigName%, SemiAutoMode
+    
+    GoSub, RefreshConfigs
+    MsgBox, 配置 %ConfigName% 已保存！
+return
+; 配置加载函数
+LoadConfig:
+    Gui, Submit, NoHide
+    if (ConfigName = "") {
+        MsgBox, 请输入配置名称！
+        return
+    }
+    
+    IniRead, tempFireRate, %configFile%, Config_%ConfigName%, FireRate, %defaultFireRate%
+    IniRead, tempRecoil, %configFile%, Config_%ConfigName%, RecoilForce, %defaultRecoil%
+    IniRead, tempHotkey, %configFile%, Config_%ConfigName%, Hotkey, %HotkeyCC%
+    IniRead, tempBreathHold, %configFile%, Config_%ConfigName%, BreathHold, 0
+    IniRead, tempSemiAutoMode, %configFile%, Config_%ConfigName%, SemiAutoMode, 0
+    
+    if (tempFireRate = "ERROR") {
+        MsgBox, 未找到配置 %ConfigName%！
+        return
+    }
+    
+    GuiControl,, FireRate, %tempFireRate%
+    GuiControl,, RecoilForce, %tempRecoil%
+    GuiControl,, HotkeyC, %tempHotkey%
+    GuiControl,, BreathHold, %tempBreathHold%
+    GuiControl,, SemiAutoMode, %tempSemiAutoMode%
+    
+    ; 更新热键
+    if (tempHotkey != HotkeyCC) {
+        Hotkey, %HotkeyCC%, CheckBox, Off
+        Hotkey, % (HotkeyCC := tempHotkey), CheckBox, On
+    }
+    
+    ; 加载成功后更新下拉列表的选择
+    GuiControl, Choose, ConfigList, %ConfigName%
+    
+    MsgBox, 配置 %ConfigName% 已加载！
+return
+; 刷新配置列表函数
+RefreshConfigs:
+    configs := ""
+    IniRead, sections, %configFile%
+    Loop, Parse, sections, `n
+    {
+        if (InStr(A_LoopField, "Config_") = 1) {
+            configName := SubStr(A_LoopField, 8)
+            configs .= configName . "|"
+        }
+    }
+    GuiControl,, ConfigList, |%configs%
+return
+; 从下拉列表加载配置函数
+LoadSelectedConfig:
+    Gui, Submit, NoHide
+    if (ConfigList != "") {
+        GuiControl,, ConfigName, %ConfigList%
+        GoSub, LoadConfig
+    }
+return
+; 删除配置函数
+DeleteConfig:
+    Gui, Submit, NoHide
+    if (ConfigName = "") {
+        MsgBox, 请输入要删除的配置名称！
+        return
+    }
+    
+    MsgBox, 4, 确认删除, 是否确定删除配置 %ConfigName%？
+    IfMsgBox Yes 
+    {
+        IniDelete, %configFile%, Config_%ConfigName%
+        GuiControl,, ConfigName, 
+        GoSub, RefreshConfigs
+        MsgBox, 配置 %ConfigName% 已删除！
+    }
+return
 
 GuiClose:
 ExitApp
