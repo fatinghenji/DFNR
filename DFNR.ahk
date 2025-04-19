@@ -1,26 +1,24 @@
-﻿; -------------------------------
+; -------------------------------
 ;          配置初始化
 ; -------------------------------
 #KeyHistory 0
 SetBatchLines -1
 Process, Priority,, High
 
-configFile := "AutoFire.ini"
+configFile := A_ScriptDir "\AutoFire.ini"  ; 使用脚本目录路径
+
+; 检查是否以管理员身份运行
+if not A_IsAdmin {
+    MsgBox, 需要以管理员身份运行以启用完整功能。
+    ExitApp
+}
 
 ; 读取或创建配置文件
 IfNotExist, %configFile%
 {
-    IniWrite, PgDn, %configFile%, Settings, Hotkey
-    IniWrite, 600, %configFile%, Settings, FireRate
-    IniWrite, 5, %configFile%, Settings, RecoilForce
-    IniWrite, 0, %configFile%, Settings, BreathHold
-    IniWrite, 0, %configFile%, Settings, SemiAutoMode ; 新增半自动模式开关
+    CreateDefaultConfig()
 }
-IniRead, HotkeyCC, %configFile%, Settings, Hotkey, PgDn
-IniRead, defaultFireRate, %configFile%, Settings, FireRate, 600
-IniRead, defaultRecoil, %configFile%, Settings, RecoilForce, 5
-IniRead, breathHold, %configFile%, Settings, BreathHold, 0
-IniRead, semiAutoMode, %configFile%, Settings, SemiAutoMode, 0 ; 读取半自动模式状态
+LoadConfigFromFile()
 
 ; -------------------------------
 ;          GUI 界面
@@ -40,7 +38,6 @@ Gui, Add, CheckBox, xm y+15 vBreathHold Checked%breathHold%, 启用屏息
 Gui, Add, CheckBox, xm y+15 vSemiAutoMode Checked%semiAutoMode%, 半自动模式
 Gui, Add, CheckBox, xm y+20 vED gCheckBox Checked, 启用辅助
 
-; 新增配置管理界面
 Gui, Add, Text, xm y+15 w80, 已存配置：
 Gui, Add, DropDownList, x+5 yp-3 vConfigList gLoadSelectedConfig w120
 Gui, Add, Button, x+5 yp w70 gRefreshConfigs, 刷新列表
@@ -51,7 +48,8 @@ Gui, Add, Button, x+5 yp w70 gSaveConfig, 保存配置
 Gui, Add, Button, x+5 yp w70 gDeleteConfig, 删除配置
 
 Gui, Add, Button, xm y+15 w100 gButtonApplyChanges, 应用设置
-Gui, Show, w300 h350, 智能压枪助手
+Gui, Add, Button, x+5 yp w100 gRestoreDefaults, 恢复默认设置 ; 新增恢复默认按钮
+Gui, Show, w300 h400, 智能压枪助手
 
 ; 初始化时刷新配置列表
 GoSub, RefreshConfigs
@@ -80,14 +78,14 @@ return
 ~RButton & LButton::
     ; 公共参数初始化
     Gui, Submit, NoHide
-    FireInterval := 60000 / FireRate
+    FireInterval := CalcFireInterval(FireRate)
     baseRecoil := RecoilForce
     lastFireTime := A_TickCount - FireInterval
     
     if (SemiAutoMode)
     {
         ; 半自动模式：增加左键状态检测
-        While (GetKeyState("RButton", "P") && GetKeyState("LButton", "P") && ED) ; 修改条件
+        While (GetKeyState("RButton", "P") && GetKeyState("LButton", "P") && ED)
         {
             if (A_TickCount - lastFireTime >= FireInterval)
             {
@@ -125,6 +123,7 @@ return
     }
 return
 #If
+
 ; -------------------------------
 ;        功能控制模块
 ; -------------------------------
@@ -161,7 +160,26 @@ SaveSettings()
     IniWrite, %BreathHold%, %configFile%, Settings, BreathHold
     IniWrite, %SemiAutoMode%, %configFile%, Settings, SemiAutoMode ; 保存模式状态
 }
-; 新增配置保存函数
+
+CreateDefaultConfig() {
+    global
+    IniWrite, PgDn, %configFile%, Settings, Hotkey
+    IniWrite, 600, %configFile%, Settings, FireRate
+    IniWrite, 5, %configFile%, Settings, RecoilForce
+    IniWrite, 0, %configFile%, Settings, BreathHold
+    IniWrite, 0, %configFile%, Settings, SemiAutoMode ; 新增半自动模式开关
+}
+
+LoadConfigFromFile() {
+    global
+    IniRead, HotkeyCC, %configFile%, Settings, Hotkey, PgDn
+    IniRead, defaultFireRate, %configFile%, Settings, FireRate, 600
+    IniRead, defaultRecoil, %configFile%, Settings, RecoilForce, 5
+    IniRead, breathHold, %configFile%, Settings, BreathHold, 0
+    IniRead, semiAutoMode, %configFile%, Settings, SemiAutoMode, 0 ; 读取半自动模式状态
+}
+
+; 配置保存函数
 SaveConfig:
     Gui, Submit, NoHide
     if (ConfigName = "") {
@@ -178,6 +196,7 @@ SaveConfig:
     GoSub, RefreshConfigs
     MsgBox, 配置 %ConfigName% 已保存！
 return
+
 ; 配置加载函数
 LoadConfig:
     Gui, Submit, NoHide
@@ -214,6 +233,7 @@ LoadConfig:
     
     MsgBox, 配置 %ConfigName% 已加载！
 return
+
 ; 刷新配置列表函数
 RefreshConfigs:
     configs := ""
@@ -227,6 +247,7 @@ RefreshConfigs:
     }
     GuiControl,, ConfigList, |%configs%
 return
+
 ; 从下拉列表加载配置函数
 LoadSelectedConfig:
     Gui, Submit, NoHide
@@ -235,6 +256,7 @@ LoadSelectedConfig:
         GoSub, LoadConfig
     }
 return
+
 ; 删除配置函数
 DeleteConfig:
     Gui, Submit, NoHide
@@ -253,5 +275,19 @@ DeleteConfig:
     }
 return
 
+; 恢复默认设置按钮
+RestoreDefaults:
+    CreateDefaultConfig()
+    LoadConfigFromFile()
+    MsgBox, 默认设置已恢复！
+return
+
 GuiClose:
 ExitApp
+
+; -------------------------------
+;          函数部分
+; -------------------------------
+CalcFireInterval(rpm) {
+    return 60000 / rpm
+}
