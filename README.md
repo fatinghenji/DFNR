@@ -1,3 +1,5 @@
+# 不是兄弟们，这玩意不会还没被封吧？？？？怎么还有人在star？
+
 # 压枪助手 - 三角洲（Delta Force）专用脚本
 
 ![AutoHotkey](https://img.shields.io/badge/AutoHotkey-v1.1+-green)  
